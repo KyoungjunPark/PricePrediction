@@ -1,0 +1,6 @@
+tensorflow-cpu
+tflearn
+pympler
+cvxopt
+seaborn
+pandas
