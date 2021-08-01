@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
-from pgportfolio.marketdata.poloniex import Poloniex
+from pgportfolio.marketdata.yahoo import Yahoo
 from pgportfolio.tools.data import get_chart_until_success
 import pandas as pd
 from datetime import datetime
@@ -9,14 +9,12 @@ import logging
 from pgportfolio.constants import *
 
 
-class CoinList(object):
+class StockList(object):
     def __init__(self, end, volume_average_days=1, volume_forward=0):
-        self._polo = Poloniex()
+        self._yahoo = Yahoo()
         # connect the internet to accees volumes
-        vol = self._polo.marketVolume()
-        ticker = self._polo.marketTicker()
-        print(vol)
-        print(ticker)
+        vol = self._yahoo.marketVolume()
+        ticker = self._yahoo.marketTicker()
         pairs = []
         coins = []
         volumes = []
@@ -51,14 +49,14 @@ class CoinList(object):
 
     @property
     def allCoins(self):
-        return self._polo.marketStatus().keys()
+        return self._yahoo.marketStatus().keys()
 
     @property
     def polo(self):
-        return self._polo
+        return self._yahoo
 
     def get_chart_until_success(self, pair, start, period, end):
-        return get_chart_until_success(self._polo, pair, start, period, end)
+        return get_chart_until_success(self._yahoo, pair, start, period, end)
 
     # get several days volume
     def __get_total_volume(self, pair, global_end, days, forward):
@@ -72,7 +70,6 @@ class CoinList(object):
             else:
                 result += one_day["quoteVolume"]
         return result
-
 
     def topNVolume(self, n=5, order=True, minVolume=0):
         if minVolume == 0:

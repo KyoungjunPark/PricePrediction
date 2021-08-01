@@ -1,7 +1,7 @@
 from __future__ import absolute_import, division, print_function
 import numpy as np
 from pgportfolio.trade import trader
-from pgportfolio.marketdata.datamatrices import DataMatrices
+from pgportfolio.marketdata.datamatrices import DataMatricesCoin
 import logging
 from pgportfolio.tools.trade import calculate_pv_after_commission
 
@@ -14,7 +14,7 @@ class BackTest(trader.Trader):
             data_matrices = self._rolling_trainer.data_matrices
         elif agent_type == "traditional":
             config["input"]["feature_number"] = 1
-            data_matrices = DataMatrices.create_from_config(config)
+            data_matrices = DataMatricesCoin.create_from_config(config)
         else:
             raise ValueError()
         self.__test_set = data_matrices.get_test_set()

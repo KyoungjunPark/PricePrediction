@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from pgportfolio.learn.nnagent import NNAgent
-from pgportfolio.marketdata.datamatrices import DataMatrices
+from pgportfolio.marketdata.datamatrices import DataMatricesCoin
 import logging
 
 
@@ -48,13 +48,13 @@ class TraderTrainer:
         self.best_metric = 0
         np.random.seed(config["random_seed"])
 
-        self.__window_size = self.input_config["window_size"]
-        self.__coin_number = self.input_config["coin_number"]
+        # self.__window_size = self.input_config["window_size"]
+        # self.__coin_number = self.input_config["coin_number"]
         self.__batch_size = self.train_config["batch_size"]
         self.__snap_shot = self.train_config["snap_shot"]
         config["input"]["fake_data"] = fake_data
 
-        self._matrix = DataMatrices.create_from_config(config)
+        self._matrix = DataMatricesCoin.create_from_config(config)
 
         self.test_set = self._matrix.get_test_set()
         if not config["training"]["fast_train"]:

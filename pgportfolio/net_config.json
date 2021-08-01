@@ -17,6 +17,7 @@
   },
 
   "input":{
+    "market": "poloniex",
     "window_size":31,
     "coin_number":11,
     "global_period":1800,

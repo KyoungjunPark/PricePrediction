@@ -1,7 +1,7 @@
 from __future__ import division,absolute_import,print_function
 import numpy as np
-from pgportfolio.marketdata.datamatrices import DataMatrices
-from pgportfolio.marketdata.globaldatamatrix import HistoryManager
+from pgportfolio.marketdata.datamatrices import DataMatricesCoin
+from pgportfolio.marketdata.globaldatamatrix import HistoryManagerCoin
 from pgportfolio.tools.configprocess import parse_time
 from pgportfolio.constants import *
 from pgportfolio.tools.data import get_volume_forward
@@ -28,10 +28,10 @@ def get_coin_name_list(config, online):
     end = end - (end % input_config["trade_period"])
     start = end - volume_forward - input_config["volume_average_days"] * DAY
     end = end - volume_forward
-    coins = HistoryManager(input_config["coin_number"], end,
-                           volume_forward=volume_forward,
-                           volume_average_days=input_config["volume_average_days"],
-                           online=online).\
+    coins = HistoryManagerCoin(input_config["coin_number"], end,
+                               volume_forward=volume_forward,
+                               volume_average_days=input_config["volume_average_days"],
+                               online=online).\
         select_coins(start, end)
     return coins
 
@@ -61,7 +61,7 @@ def get_test_data(config):
     config["input"]["feature_number"] = 1
     config["input"]["norm_method"] = "relative"
     config["input"]["global_period"] = config["input"]["global_period"]
-    price_matrix = DataMatrices.create_from_config(config)
+    price_matrix = DataMatricesCoin.create_from_config(config)
     test_set = price_matrix.get_test_set()["y"][:, 0, :].T
     test_set = np.concatenate((np.ones((1, test_set.shape[1])), test_set), axis=0)
     return test_set

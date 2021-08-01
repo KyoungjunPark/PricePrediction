@@ -2,6 +2,7 @@ import json
 import time
 import sys
 from datetime import datetime
+import yfinance as yf
 
 if sys.version_info[0] == 3:
     from urllib.request import Request, urlopen
@@ -20,8 +21,7 @@ year = day*365
 # Possible Commands
 PUBLIC_COMMANDS = ['returnTicker', 'return24hVolume', 'returnOrderBook', 'returnTradeHistory', 'returnChartData', 'returnCurrencies', 'returnLoanOrders']
 
-
-class Poloniex:
+class Yahoo:
     def __init__(self, APIKey='', Secret=''):
         self.APIKey = APIKey.encode()
         self.Secret = Secret.encode()
