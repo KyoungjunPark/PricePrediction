@@ -4,3 +4,5 @@ pympler
 cvxopt
 seaborn
 pandas
+yfinance
+Pillow

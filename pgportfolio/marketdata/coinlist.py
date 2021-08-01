@@ -15,6 +15,7 @@ class CoinList(object):
         # connect the internet to accees volumes
         vol = self._polo.marketVolume()
         ticker = self._polo.marketTicker()
+        print("CoinList")
         print(vol)
         print(ticker)
         pairs = []

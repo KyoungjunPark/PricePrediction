@@ -35,7 +35,7 @@ class HistoryManagerCoin:
     def initialize_db(self):
         with sqlite3.connect(DATABASE_DIR) as connection:
             cursor = connection.cursor()
-            cursor.execute('CREATE TABLE IF NOT EXISTS History (date INTEGER,'
+            cursor.execute('CREATE TABLE IF NOT EXISTS History_Coin (date INTEGER,'
                            ' coin varchar(20), high FLOAT, low FLOAT,'
                            ' open FLOAT, close FLOAT, volume FLOAT, '
                            ' quoteVolume FLOAT, weightedAverage FLOAT,'
@@ -58,7 +58,7 @@ class HistoryManagerCoin:
         start = int(start - (start % period))
         end = int(end - (end % period))
         coins = self.select_coins(start=end - self.__volume_forward - self.__volume_average_days * DAY,
-                                  end=end-self.__volume_forward)
+                                  end=end - self.__volume_forward)
         self.__coins = coins
         for coin in coins:
             self.update_data(start, end, coin)
@@ -70,7 +70,7 @@ class HistoryManagerCoin:
         logging.info("feature type list is %s" % str(features))
         self.__checkperiod(period)
 
-        time_index = pd.to_datetime(list(range(start, end+1, period)),unit='s')
+        time_index = pd.to_datetime(list(range(start, end + 1, period)), unit='s')
         # panel = pd.Panel(items=features, major_axis=coins, minor_axis=time_index, dtype=np.float32)
         df = pd.DataFrame(index=pd.MultiIndex.from_product([features, coins], names=['feature', 'coin']),
                           columns=time_index, dtype=np.float64)
@@ -81,36 +81,36 @@ class HistoryManagerCoin:
                 for feature in features:
                     # NOTE: transform the start date to end date
                     if feature == "close":
-                        sql = ("SELECT date+300 AS date_norm, close FROM History WHERE"
-                               " date_norm>={start} and date_norm<={end}" 
+                        sql = ("SELECT date+300 AS date_norm, close FROM History_Coin WHERE"
+                               " date_norm>={start} and date_norm<={end}"
                                " and date_norm%{period}=0 and coin=\"{coin}\"".format(
-                               start=start, end=end, period=period, coin=coin))
+                            start=start, end=end, period=period, coin=coin))
                     elif feature == "open":
-                        sql = ("SELECT date+{period} AS date_norm, open FROM History WHERE"
-                               " date_norm>={start} and date_norm<={end}" 
+                        sql = ("SELECT date+{period} AS date_norm, open FROM History_Coin WHERE"
+                               " date_norm>={start} and date_norm<={end}"
                                " and date_norm%{period}=0 and coin=\"{coin}\"".format(
-                               start=start, end=end, period=period, coin=coin))
+                            start=start, end=end, period=period, coin=coin))
                     elif feature == "volume":
-                        sql = ("SELECT date_norm, SUM(volume)"+
+                        sql = ("SELECT date_norm, SUM(volume)" +
                                " FROM (SELECT date+{period}-(date%{period}) "
-                               "AS date_norm, volume, coin FROM History)"
+                               "AS date_norm, volume, coin FROM History_Coin)"
                                " WHERE date_norm>={start} and date_norm<={end} and coin=\"{coin}\""
                                " GROUP BY date_norm".format(
-                                    period=period,start=start,end=end,coin=coin))
+                                   period=period, start=start, end=end, coin=coin))
                     elif feature == "high":
                         sql = ("SELECT date_norm, MAX(high)" +
                                " FROM (SELECT date+{period}-(date%{period})"
-                               " AS date_norm, high, coin FROM History)"
+                               " AS date_norm, high, coin FROM History_Coin)"
                                " WHERE date_norm>={start} and date_norm<={end} and coin=\"{coin}\""
                                " GROUP BY date_norm".format(
-                                    period=period,start=start,end=end,coin=coin))
+                                   period=period, start=start, end=end, coin=coin))
                     elif feature == "low":
                         sql = ("SELECT date_norm, MIN(low)" +
-                                " FROM (SELECT date+{period}-(date%{period})"
-                                " AS date_norm, low, coin FROM History)"
-                                " WHERE date_norm>={start} and date_norm<={end} and coin=\"{coin}\""
-                                " GROUP BY date_norm".format(
-                                    period=period,start=start,end=end,coin=coin))
+                               " FROM (SELECT date+{period}-(date%{period})"
+                               " AS date_norm, low, coin FROM History_Coin)"
+                               " WHERE date_norm>={start} and date_norm<={end} and coin=\"{coin}\""
+                               " GROUP BY date_norm".format(
+                                   period=period, start=start, end=end, coin=coin))
                     else:
                         msg = ("The feature %s is not supported" % feature)
                         logging.error(msg)
@@ -120,7 +120,8 @@ class HistoryManagerCoin:
                                                     index_col="date_norm")
                     idx = pd.IndexSlice
                     df.loc[idx[feature, coin], serial_data.index] = serial_data.squeeze()
-                    df.loc[idx[feature, coin], :] = df.loc[idx[feature, coin], :].fillna(method="bfill").fillna(method="ffill")
+                    df.loc[idx[feature, coin], :] = df.loc[idx[feature, coin], :].fillna(method="bfill").fillna(
+                        method="ffill")
         finally:
             connection.commit()
             connection.close()
@@ -129,18 +130,19 @@ class HistoryManagerCoin:
     # select top coin_number of coins by volume from start to end
     def select_coins(self, start, end):
         if not self._online:
-            logging.info("select coins offline from %s to %s" % (datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M'),
-                                                                    datetime.fromtimestamp(end).strftime('%Y-%m-%d %H:%M')))
+            logging.info(
+                "select coins offline from %s to %s" % (datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M'),
+                                                        datetime.fromtimestamp(end).strftime('%Y-%m-%d %H:%M')))
             connection = sqlite3.connect(DATABASE_DIR)
             try:
-                cursor=connection.cursor()
-                cursor.execute('SELECT coin,SUM(volume) AS total_volume FROM History WHERE'
+                cursor = connection.cursor()
+                cursor.execute('SELECT coin,SUM(volume) AS total_volume FROM History_Coin WHERE'
                                ' date>=? and date<=? GROUP BY coin'
                                ' ORDER BY total_volume DESC LIMIT ?;',
                                (int(start), int(end), self._coin_number))
                 coins_tuples = cursor.fetchall()
 
-                if len(coins_tuples)!=self._coin_number:
+                if len(coins_tuples) != self._coin_number:
                     logging.error("the sqlite error happend")
             finally:
                 connection.commit()
@@ -150,7 +152,7 @@ class HistoryManagerCoin:
                 coins.append(tuple[0])
         else:
             coins = list(self._coin_list.topNVolume(n=self._coin_number).index)
-        logging.debug("Selected coins are: "+str(coins))
+        logging.debug("Selected coins are: " + str(coins))
         return coins
 
     def __checkperiod(self, period):
@@ -174,18 +176,18 @@ class HistoryManagerCoin:
         connection = sqlite3.connect(DATABASE_DIR)
         try:
             cursor = connection.cursor()
-            min_date = cursor.execute('SELECT MIN(date) FROM History WHERE coin=?;', (coin,)).fetchall()[0][0]
-            max_date = cursor.execute('SELECT MAX(date) FROM History WHERE coin=?;', (coin,)).fetchall()[0][0]
+            min_date = cursor.execute('SELECT MIN(date) FROM History_Coin WHERE coin=?;', (coin,)).fetchall()[0][0]
+            max_date = cursor.execute('SELECT MAX(date) FROM History_Coin WHERE coin=?;', (coin,)).fetchall()[0][0]
 
-            if min_date==None or max_date==None:
+            if min_date is None or max_date is None:
                 self.__fill_data(start, end, coin, cursor)
             else:
-                if max_date+10*self.__storage_period<end:
+                if max_date + 10 * self.__storage_period < end:
                     if not self._online:
                         raise Exception("Have to be online")
                     self.__fill_data(max_date + self.__storage_period, end, coin, cursor)
-                if min_date>start and self._online:
-                    self.__fill_data(start, min_date - self.__storage_period-1, coin, cursor)
+                if min_date > start and self._online:
+                    self.__fill_data(start, min_date - self.__storage_period - 1, coin, cursor)
 
             # if there is no data
         finally:
@@ -193,9 +195,9 @@ class HistoryManagerCoin:
             connection.close()
 
     def __fill_data(self, start, end, coin, cursor):
-        duration = 7819200 # three months
+        duration = 7819200  # three months
         bk_start = start
-        for bk_end in range(start+duration-1, end, duration):
+        for bk_end in range(start + duration - 1, end, duration):
             self.__fill_part_data(bk_start, bk_end, coin, cursor)
             bk_start += duration
         if bk_start < end:
@@ -207,8 +209,8 @@ class HistoryManagerCoin:
             start=start,
             end=end,
             period=self.__storage_period)
-        logging.info("fill %s data from %s to %s"%(coin, datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M'),
-                                            datetime.fromtimestamp(end).strftime('%Y-%m-%d %H:%M')))
+        logging.info("fill %s data from %s to %s" % (coin, datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M'),
+                                                     datetime.fromtimestamp(end).strftime('%Y-%m-%d %H:%M')))
         for c in chart:
             if c["date"] > 0:
                 if c['weightedAverage'] == 0:
@@ -216,16 +218,16 @@ class HistoryManagerCoin:
                 else:
                     weightedAverage = c['weightedAverage']
 
-                #NOTE here the USDT is in reversed order
+                # NOTE here the USDT is in reversed order
                 if 'reversed_' in coin:
-                    cursor.execute('INSERT INTO History VALUES (?,?,?,?,?,?,?,?,?)',
-                        (c['date'],coin,1.0/c['low'],1.0/c['high'],1.0/c['open'],
-                        1.0/c['close'],c['quoteVolume'],c['volume'],
-                        1.0/weightedAverage))
+                    cursor.execute('INSERT INTO History_Coin VALUES (?,?,?,?,?,?,?,?,?)',
+                                   (c['date'], coin, 1.0 / c['low'], 1.0 / c['high'], 1.0 / c['open'],
+                                    1.0 / c['close'], c['quoteVolume'], c['volume'],
+                                    1.0 / weightedAverage))
                 else:
-                    cursor.execute('INSERT INTO History VALUES (?,?,?,?,?,?,?,?,?)',
-                                   (c['date'],coin,c['high'],c['low'],c['open'],
-                                    c['close'],c['volume'],c['quoteVolume'],
+                    cursor.execute('INSERT INTO History_Coin VALUES (?,?,?,?,?,?,?,?,?)',
+                                   (c['date'], coin, c['high'], c['low'], c['open'],
+                                    c['close'], c['volume'], c['quoteVolume'],
                                     weightedAverage))
 
 
@@ -249,11 +251,11 @@ class HistoryManagerStock:
     def initialize_db(self):
         with sqlite3.connect(DATABASE_DIR) as connection:
             cursor = connection.cursor()
-            cursor.execute('CREATE TABLE IF NOT EXISTS History (date INTEGER,'
-                           ' coin varchar(20), high FLOAT, low FLOAT,'
+            cursor.execute('CREATE TABLE IF NOT EXISTS History_Stock (date INTEGER,'
+                           ' stock varchar(20), high FLOAT, low FLOAT,'
                            ' open FLOAT, close FLOAT, volume FLOAT, '
                            ' quoteVolume FLOAT, weightedAverage FLOAT,'
-                           'PRIMARY KEY (date, coin));')
+                           'PRIMARY KEY (date, stock));')
             connection.commit()
 
     def get_global_data_matrix(self, start, end, period=300, features=('close',)):
@@ -269,8 +271,8 @@ class HistoryManagerStock:
         :param features: tuple or list of the feature names
         :return a panel, [feature, coin, time]
         """
-        start = int(start - (start%period))
-        end = int(end - (end%period))
+        start = int(start - (start % period))
+        end = int(end - (end % period))
 
         for stock in self.stocks:
             self.update_data(start, end, stock)
@@ -278,47 +280,44 @@ class HistoryManagerStock:
         logging.info("feature type list is %s" % str(features))
         self.__checkperiod(period)
 
-        time_index = pd.to_datetime(list(range(start, end+1, period)),unit='s')
+        time_index = pd.to_datetime(list(range(start, end + 1, period)), unit='s')
         # panel = pd.Panel(items=features, major_axis=coins, minor_axis=time_index, dtype=np.float32)
         df = pd.DataFrame(index=pd.MultiIndex.from_product([features, self.stocks], names=['feature', 'stock']),
                           columns=time_index, dtype=np.float64)
 
         connection = sqlite3.connect(DATABASE_DIR)
         try:
-            for row_number, coin in enumerate(self.stocks):
+            for row_number, stock in enumerate(self.stocks):
                 for feature in features:
                     # NOTE: transform the start date to end date
                     if feature == "close":
-                        sql = ("SELECT date+300 AS date_norm, close FROM History WHERE"
-                               " date_norm>={start} and date_norm<={end}" 
-                               " and date_norm%{period}=0 and coin=\"{coin}\"".format(
-                               start=start, end=end, period=period, coin=coin))
+                        sql = ("SELECT date+300 AS date_norm, close FROM History_Stock WHERE"
+                               " date_norm>={start} and date_norm<={end}"
+                               " and date_norm%{period}=0 and coin=\"{coin}\""
+                               .format(start=start, end=end, period=period, coin=stock))
                     elif feature == "open":
-                        sql = ("SELECT date+{period} AS date_norm, open FROM History WHERE"
-                               " date_norm>={start} and date_norm<={end}" 
-                               " and date_norm%{period}=0 and coin=\"{coin}\"".format(
-                               start=start, end=end, period=period, coin=coin))
+                        sql = ("SELECT date+{period} AS date_norm, open FROM History_Stock WHERE"
+                               " date_norm>={start} and date_norm<={end}"
+                               " and date_norm%{period}=0 and coin=\"{coin}\""
+                               .format(start=start, end=end, period=period, coin=stock))
                     elif feature == "volume":
-                        sql = ("SELECT date_norm, SUM(volume)"+
+                        sql = ("SELECT date_norm, SUM(volume)" +
                                " FROM (SELECT date+{period}-(date%{period}) "
-                               "AS date_norm, volume, coin FROM History)"
+                               "AS date_norm, volume, coin FROM History_Stock)"
                                " WHERE date_norm>={start} and date_norm<={end} and coin=\"{coin}\""
-                               " GROUP BY date_norm".format(
-                                    period=period,start=start,end=end,coin=coin))
+                               " GROUP BY date_norm".format(period=period, start=start, end=end, coin=stock))
                     elif feature == "high":
                         sql = ("SELECT date_norm, MAX(high)" +
                                " FROM (SELECT date+{period}-(date%{period})"
-                               " AS date_norm, high, coin FROM History)"
+                               " AS date_norm, high, coin FROM History_Stock)"
                                " WHERE date_norm>={start} and date_norm<={end} and coin=\"{coin}\""
-                               " GROUP BY date_norm".format(
-                                    period=period,start=start,end=end,coin=coin))
+                               " GROUP BY date_norm".format(period=period, start=start, end=end, coin=stock))
                     elif feature == "low":
                         sql = ("SELECT date_norm, MIN(low)" +
-                                " FROM (SELECT date+{period}-(date%{period})"
-                                " AS date_norm, low, coin FROM History)"
-                                " WHERE date_norm>={start} and date_norm<={end} and coin=\"{coin}\""
-                                " GROUP BY date_norm".format(
-                                    period=period,start=start,end=end,coin=coin))
+                               " FROM (SELECT date+{period}-(date%{period})"
+                               " AS date_norm, low, coin FROM History_Stock)"
+                               " WHERE date_norm>={start} and date_norm<={end} and coin=\"{coin}\""
+                               " GROUP BY date_norm".format(period=period, start=start, end=end, coin=stock))
                     else:
                         msg = ("The feature %s is not supported" % feature)
                         logging.error(msg)
@@ -327,8 +326,9 @@ class HistoryManagerStock:
                                                     parse_dates=["date_norm"],
                                                     index_col="date_norm")
                     idx = pd.IndexSlice
-                    df.loc[idx[feature, coin], serial_data.index] = serial_data.squeeze()
-                    df.loc[idx[feature, coin], :] = df.loc[idx[feature, coin], :].fillna(method="bfill").fillna(method="ffill")
+                    df.loc[idx[feature, stock], serial_data.index] = serial_data.squeeze()
+                    df.loc[idx[feature, stock], :] = df.loc[idx[feature, stock], :].fillna(method="bfill").fillna(
+                        method="ffill")
         finally:
             connection.commit()
             connection.close()
@@ -355,13 +355,13 @@ class HistoryManagerStock:
         connection = sqlite3.connect(DATABASE_DIR)
         try:
             cursor = connection.cursor()
-            min_date = cursor.execute('SELECT MIN(date) FROM History WHERE stock=?;', (stock,)).fetchall()[0][0]
-            max_date = cursor.execute('SELECT MAX(date) FROM History WHERE stock=?;', (stock,)).fetchall()[0][0]
+            min_date = cursor.execute('SELECT MIN(date) FROM History_Stock WHERE stock=?;', (stock,)).fetchall()[0][0]
+            max_date = cursor.execute('SELECT MAX(date) FROM History_Stock WHERE stock=?;', (stock,)).fetchall()[0][0]
 
             if min_date is None or max_date is None:
                 self.__fill_data(start, end, stock, cursor)
             else:
-                if max_date+10*self.__storage_period<end:
+                if max_date + 10 * self.__storage_period < end:
                     if not self._online:
                         raise Exception("Have to be online")
                     self.__fill_data(max_date + self.__storage_period, end, stock, cursor)
@@ -373,23 +373,23 @@ class HistoryManagerStock:
             connection.commit()
             connection.close()
 
-    def __fill_data(self, start, end, coin, cursor):
-        duration = 7819200 # three months
+    def __fill_data(self, start, end, stock, cursor):
+        duration = 7819200  # three months
         bk_start = start
-        for bk_end in range(start+duration-1, end, duration):
-            self.__fill_part_data(bk_start, bk_end, coin, cursor)
+        for bk_end in range(start + duration - 1, end, duration):
+            self.__fill_part_data(bk_start, bk_end, stock, cursor)
             bk_start += duration
         if bk_start < end:
-            self.__fill_part_data(bk_start, end, coin, cursor)
+            self.__fill_part_data(bk_start, end, stock, cursor)
 
-    def __fill_part_data(self, start, end, coin, cursor):
+    def __fill_part_data(self, start, end, stock, cursor):
         chart = self._stock_list.get_chart_until_success(
-            pair=self._stock_list.allActiveCoins.at[coin, 'pair'],
+            pair=self._stock_list.allActiveCoins.at[stock, 'pair'],
             start=start,
             end=end,
             period=self.__storage_period)
-        logging.info("fill %s data from %s to %s"%(coin, datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M'),
-                                            datetime.fromtimestamp(end).strftime('%Y-%m-%d %H:%M')))
+        logging.info("fill %s data from %s to %s" % (stock, datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M'),
+                                                     datetime.fromtimestamp(end).strftime('%Y-%m-%d %H:%M')))
         for c in chart:
             if c["date"] > 0:
                 if c['weightedAverage'] == 0:
@@ -397,14 +397,14 @@ class HistoryManagerStock:
                 else:
                     weightedAverage = c['weightedAverage']
 
-                #NOTE here the USDT is in reversed order
-                if 'reversed_' in coin:
-                    cursor.execute('INSERT INTO History VALUES (?,?,?,?,?,?,?,?,?)',
-                        (c['date'],coin,1.0/c['low'],1.0/c['high'],1.0/c['open'],
-                        1.0/c['close'],c['quoteVolume'],c['volume'],
-                        1.0/weightedAverage))
+                # NOTE here the USDT is in reversed order
+                if 'reversed_' in stock:
+                    cursor.execute('INSERT INTO History_Stock VALUES (?,?,?,?,?,?,?,?,?)',
+                                   (c['date'], stock, 1.0 / c['low'], 1.0 / c['high'], 1.0 / c['open'],
+                                    1.0 / c['close'], c['quoteVolume'], c['volume'],
+                                    1.0 / weightedAverage))
                 else:
-                    cursor.execute('INSERT INTO History VALUES (?,?,?,?,?,?,?,?,?)',
-                                   (c['date'],coin,c['high'],c['low'],c['open'],
-                                    c['close'],c['volume'],c['quoteVolume'],
+                    cursor.execute('INSERT INTO History_Stock VALUES (?,?,?,?,?,?,?,?,?)',
+                                   (c['date'], stock, c['high'], c['low'], c['open'],
+                                    c['close'], c['volume'], c['quoteVolume'],
                                     weightedAverage))
