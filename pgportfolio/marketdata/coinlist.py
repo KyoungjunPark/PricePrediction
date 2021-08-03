@@ -15,9 +15,6 @@ class CoinList(object):
         # connect the internet to accees volumes
         vol = self._polo.marketVolume()
         ticker = self._polo.marketTicker()
-        print("CoinList")
-        print(vol)
-        print(ticker)
         pairs = []
         coins = []
         volumes = []
@@ -73,7 +70,6 @@ class CoinList(object):
             else:
                 result += one_day["quoteVolume"]
         return result
-
 
     def topNVolume(self, n=5, order=True, minVolume=0):
         if minVolume == 0:

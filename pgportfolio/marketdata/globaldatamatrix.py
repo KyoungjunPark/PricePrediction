@@ -211,6 +211,7 @@ class HistoryManagerCoin:
             period=self.__storage_period)
         logging.info("fill %s data from %s to %s" % (coin, datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M'),
                                                      datetime.fromtimestamp(end).strftime('%Y-%m-%d %H:%M')))
+        print(chart[0])
         for c in chart:
             if c["date"] > 0:
                 if c['weightedAverage'] == 0:
@@ -384,12 +385,13 @@ class HistoryManagerStock:
 
     def __fill_part_data(self, start, end, stock, cursor):
         chart = self._stock_list.get_chart_until_success(
-            pair=self._stock_list.allActiveCoins.at[stock, 'pair'],
+            stock=stock,
             start=start,
             end=end,
             period=self.__storage_period)
         logging.info("fill %s data from %s to %s" % (stock, datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M'),
                                                      datetime.fromtimestamp(end).strftime('%Y-%m-%d %H:%M')))
+        print(chart)
         for c in chart:
             if c["date"] > 0:
                 if c['weightedAverage'] == 0:

@@ -17,9 +17,9 @@
   },
 
   "input":{
-    "market": "poloniex",
+    "market": "yahoo",
     "window_size":31,
-    "coin_number":11,
+    "company_list": ["MMM", "ABT", "AMZN", "AMGN", "AOS"],
     "global_period":1800,
     "feature_number":3,
     "test_portion":0.08,

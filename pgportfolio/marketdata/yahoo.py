@@ -3,6 +3,10 @@ import time
 import sys
 from datetime import datetime
 import yfinance as yf
+import logging
+from yahoo_fin.stock_info import tickers_nasdaq, tickers_sp500, tickers_dow
+
+from pgportfolio.marketdata.info_source import InfoSource
 
 if sys.version_info[0] == 3:
     from urllib.request import Request, urlopen
@@ -21,24 +25,15 @@ year = day*365
 # Possible Commands
 PUBLIC_COMMANDS = ['returnTicker', 'return24hVolume', 'returnOrderBook', 'returnTradeHistory', 'returnChartData', 'returnCurrencies', 'returnLoanOrders']
 
-class Yahoo:
-    def __init__(self, APIKey='', Secret=''):
-        self.APIKey = APIKey.encode()
-        self.Secret = Secret.encode()
-        # Conversions
-        self.timestamp_str = lambda timestamp=time.time(), format="%Y-%m-%d %H:%M:%S": datetime.fromtimestamp(timestamp).strftime(format)
-        self.str_timestamp = lambda datestr=self.timestamp_str(), format="%Y-%m-%d %H:%M:%S": int(time.mktime(time.strptime(datestr, format)))
-        self.float_roundPercent = lambda floatN, decimalP=2: str(round(float(floatN) * 100, decimalP))+"%"
 
-        # PUBLIC COMMANDS
-        self.marketTicker = lambda x=0: self.api('returnTicker')
-        self.marketVolume = lambda x=0: self.api('return24hVolume')
-        self.marketStatus = lambda x=0: self.api('returnCurrencies')
-        self.marketLoans = lambda coin: self.api('returnLoanOrders',{'currency':coin})
-        self.marketOrders = lambda pair='all', depth=10:\
-            self.api('returnOrderBook', {'currencyPair':pair, 'depth':depth})
-        self.marketChart = lambda pair, period=day, start=time.time()-(week*1), end=time.time(): self.api('returnChartData', {'currencyPair':pair, 'period':period, 'start':start, 'end':end})
-        self.marketTradeHist = lambda pair: self.api('returnTradeHistory',{'currencyPair':pair}) # NEEDS TO BE FIXED ON Poloniex
+class Yahoo(InfoSource):
+    def __init__(self, ticker=None):
+        self.ticker = []
+        self.history = {}
+
+    def market_chart(self, target, start=time.time() - (week * 1), period=day, end=time.time()):
+        print(self.history[target])
+        exit(1)
 
     #####################
     # Main Api Function #
@@ -57,3 +52,47 @@ class Yahoo:
             return json.loads(ret.read().decode(encoding='UTF-8'))
         else:
             return False
+
+    def add_market_nasdaq_ticker(self):
+        ticker_list = tickers_nasdaq()
+        self.ticker.append(ticker_list)
+        index = 0
+        for ticker in ticker_list:
+            yf_obj = yf.Ticker(ticker)
+            if index % 100 == 0:
+                logging.info("%d/%d" % (index, len(ticker_list)))
+            index += 1
+            self.history[ticker] = yf_obj.history()
+        return ticker_list
+
+    def add_market_sp500_ticker(self):
+        ticker_list = tickers_sp500()
+        self.ticker.append(ticker_list)
+        index = 0
+        for ticker in ticker_list:
+            yf_obj = yf.Ticker(ticker)
+            if index % 100 == 0:
+                logging.info("%d/%d" % (index, len(ticker_list)))
+            index += 1
+            self.history[ticker] = yf_obj.history()
+        return ticker_list
+
+    def add_market_dow_ticker(self):
+        ticker_list = tickers_dow()
+        self.ticker.append(ticker_list)
+        index = 0
+        for ticker in ticker_list:
+            yf_obj = yf.Ticker(ticker)
+            if index % 100 == 0:
+                logging.info("%d/%d" % (index, len(ticker_list)))
+            index += 1
+            self.history[ticker] = yf_obj.history()
+        return ticker_list
+
+    def get_recent_volume(self, ticker):
+        return self.history[ticker].tail(1)['Volume'].iloc[0]
+
+    def get_recent_prices(self, ticker):
+        return self.history[ticker].tail(1)['Close'].iloc[0]
+
+

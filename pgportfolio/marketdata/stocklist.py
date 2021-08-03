@@ -13,56 +13,53 @@ class StockList(object):
     def __init__(self, end, volume_average_days=1, volume_forward=0):
         self._yahoo = Yahoo()
         # connect the internet to accees volumes
-        vol = self._yahoo.marketVolume()
-        ticker = self._yahoo.marketTicker()
+        # vol = self._yahoo.marketVolume()
+        ticker = self._yahoo.add_market_sp500_ticker()
         pairs = []
-        coins = []
+        stocks = []
         volumes = []
         prices = []
 
-        logging.info("select coin online from %s to %s" % (datetime.fromtimestamp(end-(DAY*volume_average_days)-
+        logging.info("select stock online from %s to %s" % (datetime.fromtimestamp(end-(DAY*volume_average_days)-
                                                                                   volume_forward).
                                                            strftime('%Y-%m-%d %H:%M'),
                                                            datetime.fromtimestamp(end-volume_forward).
                                                            strftime('%Y-%m-%d %H:%M')))
-        for k, v in vol.items():
-            if k.startswith("BTC_") or k.endswith("_BTC"):
-                pairs.append(k)
-                for c, val in v.items():
-                    if c != 'BTC':
-                        if k.endswith('_BTC'):
-                            coins.append('reversed_' + c)
-                            prices.append(1.0 / float(ticker[k]['last']))
-                        else:
-                            coins.append(c)
-                            prices.append(float(ticker[k]['last']))
-                    else:
-                        volumes.append(self.__get_total_volume(pair=k, global_end=end,
-                                                               days=volume_average_days,
-                                                               forward=volume_forward))
-        self._df = pd.DataFrame({'coin': coins, 'pair': pairs, 'volume': volumes, 'price':prices})
-        self._df = self._df.set_index('coin')
+        for tick in ticker:
+            volume = self._yahoo.get_recent_volume(tick)
+            price = self._yahoo.get_recent_prices(tick)
+            if volume is None or price is None:
+                logging.info("cannot load %s (%s, %s)" % (tick, volume, price))
+                pass
+            else:
+                pairs.append(tick)
+                stocks.append(tick)
+                volumes.append(volume)
+                prices.append(price)
+        self._df = pd.DataFrame({'stock': stocks, 'pair': pairs, 'volume': volumes, 'price': prices})
+        self._df = self._df.set_index('stock')
+        print(self._df)
 
     @property
-    def allActiveCoins(self):
+    def all_active_stocks(self):
         return self._df
 
     @property
-    def allCoins(self):
+    def all_stocks(self):
         return self._yahoo.marketStatus().keys()
 
     @property
     def polo(self):
         return self._yahoo
 
-    def get_chart_until_success(self, pair, start, period, end):
-        return get_chart_until_success(self._yahoo, pair, start, period, end)
+    def get_chart_until_success(self, stock, start, period, end):
+        return get_chart_until_success(self._yahoo, stock, start, period, end)
 
     # get several days volume
     def __get_total_volume(self, pair, global_end, days, forward):
         start = global_end-(DAY*days)-forward
         end = global_end-forward
-        chart = self.get_chart_until_success(pair=pair, period=DAY, start=start, end=end)
+        chart = self.get_chart_until_success(stock=pair, period=DAY, start=start, end=end)
         result = 0
         for one_day in chart:
             if pair.startswith("BTC_"):
