@@ -63,6 +63,7 @@ def main():
         generate.add_packages(load_config(), int(options.repeat))
     elif options.mode == "download_data":
         logging.basicConfig(level=logging.INFO)
+
         with open("./pgportfolio/net_config.json") as file:
             config = json.load(file)
         config = preprocess_config(config)
@@ -119,7 +120,6 @@ def main():
         else:
             labels = algos
         plot.table_backtest(load_config(), algos, labels, format=options.format)
-
 
 def _set_logging_by_algo(console_level, file_level, algo, name):
     if algo.isdigit():

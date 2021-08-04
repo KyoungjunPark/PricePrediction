@@ -10,20 +10,20 @@ from pgportfolio.constants import *
 
 
 class StockList(object):
-    def __init__(self, end, volume_average_days=1, volume_forward=0):
+    def __init__(self, stock_list, start, end, volume_average_days=1, volume_forward=0):
         self._yahoo = Yahoo()
         # connect the internet to accees volumes
         # vol = self._yahoo.marketVolume()
-        ticker = self._yahoo.add_market_sp500_ticker()
+        # ticker = self._yahoo.add_market_sp500_ticker(start, end)
+        ticker = self._yahoo.add_market_ticker(stock_list, start, end)
         pairs = []
         stocks = []
         volumes = []
         prices = []
 
-        logging.info("select stock online from %s to %s" % (datetime.fromtimestamp(end-(DAY*volume_average_days)-
-                                                                                  volume_forward).
+        logging.info("select stock online from %s to %s" % (datetime.fromtimestamp(start).
                                                            strftime('%Y-%m-%d %H:%M'),
-                                                           datetime.fromtimestamp(end-volume_forward).
+                                                           datetime.fromtimestamp(end).
                                                            strftime('%Y-%m-%d %H:%M')))
         for tick in ticker:
             volume = self._yahoo.get_recent_volume(tick)
@@ -38,7 +38,6 @@ class StockList(object):
                 prices.append(price)
         self._df = pd.DataFrame({'stock': stocks, 'pair': pairs, 'volume': volumes, 'price': prices})
         self._df = self._df.set_index('stock')
-        print(self._df)
 
     @property
     def all_active_stocks(self):
@@ -52,8 +51,8 @@ class StockList(object):
     def polo(self):
         return self._yahoo
 
-    def get_chart_until_success(self, stock, start, period, end):
-        return get_chart_until_success(self._yahoo, stock, start, period, end)
+    def get_chart_until_success(self, stock, period, start, end):
+        return get_chart_until_success(self._yahoo, stock, period, start, end)
 
     # get several days volume
     def __get_total_volume(self, pair, global_end, days, forward):

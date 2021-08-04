@@ -211,7 +211,6 @@ class HistoryManagerCoin:
             period=self.__storage_period)
         logging.info("fill %s data from %s to %s" % (coin, datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M'),
                                                      datetime.fromtimestamp(end).strftime('%Y-%m-%d %H:%M')))
-        print(chart[0])
         for c in chart:
             if c["date"] > 0:
                 if c['weightedAverage'] == 0:
@@ -233,14 +232,14 @@ class HistoryManagerCoin:
 
 
 class HistoryManagerStock:
-    # if offline ,the coin_list could be None
+    # if offline ,the stock_list could be None
     # NOTE: return of the sqlite results is a list of tuples, each tuple is a row
-    def __init__(self, end, stock_list, volume_average_days=1, volume_forward=0, online=True):
+    def __init__(self, start, end, stock_list, volume_average_days=1, volume_forward=0, online=True):
         self.initialize_db()
-        self.__storage_period = FIVE_MINUTES  # keep this as 300
+        self.__storage_period = DAY  # keep this as 300
         self._online = online
         if self._online:
-            self._stock_list = StockList(end, volume_average_days, volume_forward)
+            self._stock_list = StockList(stock_list, start, end, volume_average_days, volume_forward)
         self.__volume_forward = volume_forward
         self.__volume_average_days = volume_average_days
         self.__stocks = stock_list
@@ -255,22 +254,23 @@ class HistoryManagerStock:
             cursor.execute('CREATE TABLE IF NOT EXISTS History_Stock (date INTEGER,'
                            ' stock varchar(20), high FLOAT, low FLOAT,'
                            ' open FLOAT, close FLOAT, volume FLOAT, '
-                           ' quoteVolume FLOAT, weightedAverage FLOAT,'
+                           ' dividends FLOAT, splits FLOAT,'
                            'PRIMARY KEY (date, stock));')
             connection.commit()
 
     def get_global_data_matrix(self, start, end, period=300, features=('close',)):
         """
-        :return a numpy ndarray whose axis is [feature, coin, time]
+        :return a numpy ndarray whose axis is [feature, stock, time]
         """
         return self.get_global_data(start, end, period, features).values
 
     def get_global_data(self, start, end, period=300, features=('close',)):
         """
-        :param start/end: linux timestamp in seconds
+        :param start: linux timestamp in seconds
+        :param end: linux timestamp in seconds
         :param period: time interval of each data access point
         :param features: tuple or list of the feature names
-        :return a panel, [feature, coin, time]
+        :return a panel, [feature, stock, time]
         """
         start = int(start - (start % period))
         end = int(end - (end % period))
@@ -282,7 +282,7 @@ class HistoryManagerStock:
         self.__checkperiod(period)
 
         time_index = pd.to_datetime(list(range(start, end + 1, period)), unit='s')
-        # panel = pd.Panel(items=features, major_axis=coins, minor_axis=time_index, dtype=np.float32)
+        # panel = pd.Panel(items=features, major_axis=stocks, minor_axis=time_index, dtype=np.float32)
         df = pd.DataFrame(index=pd.MultiIndex.from_product([features, self.stocks], names=['feature', 'stock']),
                           columns=time_index, dtype=np.float64)
 
@@ -294,31 +294,31 @@ class HistoryManagerStock:
                     if feature == "close":
                         sql = ("SELECT date+300 AS date_norm, close FROM History_Stock WHERE"
                                " date_norm>={start} and date_norm<={end}"
-                               " and date_norm%{period}=0 and coin=\"{coin}\""
-                               .format(start=start, end=end, period=period, coin=stock))
+                               " and date_norm%{period}=0 and stock=\"{stock}\""
+                               .format(start=start, end=end, period=period, stock=stock))
                     elif feature == "open":
                         sql = ("SELECT date+{period} AS date_norm, open FROM History_Stock WHERE"
                                " date_norm>={start} and date_norm<={end}"
-                               " and date_norm%{period}=0 and coin=\"{coin}\""
-                               .format(start=start, end=end, period=period, coin=stock))
+                               " and date_norm%{period}=0 and stock=\"{stock}\""
+                               .format(start=start, end=end, period=period, stock=stock))
                     elif feature == "volume":
                         sql = ("SELECT date_norm, SUM(volume)" +
                                " FROM (SELECT date+{period}-(date%{period}) "
-                               "AS date_norm, volume, coin FROM History_Stock)"
-                               " WHERE date_norm>={start} and date_norm<={end} and coin=\"{coin}\""
-                               " GROUP BY date_norm".format(period=period, start=start, end=end, coin=stock))
+                               "AS date_norm, volume, stock FROM History_Stock)"
+                               " WHERE date_norm>={start} and date_norm<={end} and stock=\"{stock}\""
+                               " GROUP BY date_norm".format(period=period, start=start, end=end, stock=stock))
                     elif feature == "high":
                         sql = ("SELECT date_norm, MAX(high)" +
                                " FROM (SELECT date+{period}-(date%{period})"
-                               " AS date_norm, high, coin FROM History_Stock)"
-                               " WHERE date_norm>={start} and date_norm<={end} and coin=\"{coin}\""
-                               " GROUP BY date_norm".format(period=period, start=start, end=end, coin=stock))
+                               " AS date_norm, high, stock FROM History_Stock)"
+                               " WHERE date_norm>={start} and date_norm<={end} and stock=\"{stock}\""
+                               " GROUP BY date_norm".format(period=period, start=start, end=end, stock=stock))
                     elif feature == "low":
                         sql = ("SELECT date_norm, MIN(low)" +
                                " FROM (SELECT date+{period}-(date%{period})"
-                               " AS date_norm, low, coin FROM History_Stock)"
-                               " WHERE date_norm>={start} and date_norm<={end} and coin=\"{coin}\""
-                               " GROUP BY date_norm".format(period=period, start=start, end=end, coin=stock))
+                               " AS date_norm, low, stock FROM History_Stock)"
+                               " WHERE date_norm>={start} and date_norm<={end} and stock=\"{stock}\""
+                               " GROUP BY date_norm".format(period=period, start=start, end=end, stock=stock))
                     else:
                         msg = ("The feature %s is not supported" % feature)
                         logging.error(msg)
@@ -362,12 +362,7 @@ class HistoryManagerStock:
             if min_date is None or max_date is None:
                 self.__fill_data(start, end, stock, cursor)
             else:
-                if max_date + 10 * self.__storage_period < end:
-                    if not self._online:
-                        raise Exception("Have to be online")
-                    self.__fill_data(max_date + self.__storage_period, end, stock, cursor)
-                if min_date > start and self._online:
-                    self.__fill_data(start, min_date - self.__storage_period - 1, stock, cursor)
+                pass
 
             # if there is no data
         finally:
@@ -375,7 +370,7 @@ class HistoryManagerStock:
             connection.close()
 
     def __fill_data(self, start, end, stock, cursor):
-        duration = 7819200  # three months
+        duration = DAY  # three months
         bk_start = start
         for bk_end in range(start + duration - 1, end, duration):
             self.__fill_part_data(bk_start, bk_end, stock, cursor)
@@ -391,22 +386,8 @@ class HistoryManagerStock:
             period=self.__storage_period)
         logging.info("fill %s data from %s to %s" % (stock, datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M'),
                                                      datetime.fromtimestamp(end).strftime('%Y-%m-%d %H:%M')))
-        print(chart)
         for c in chart:
-            if c["date"] > 0:
-                if c['weightedAverage'] == 0:
-                    weightedAverage = c['close']
-                else:
-                    weightedAverage = c['weightedAverage']
-
-                # NOTE here the USDT is in reversed order
-                if 'reversed_' in stock:
-                    cursor.execute('INSERT INTO History_Stock VALUES (?,?,?,?,?,?,?,?,?)',
-                                   (c['date'], stock, 1.0 / c['low'], 1.0 / c['high'], 1.0 / c['open'],
-                                    1.0 / c['close'], c['quoteVolume'], c['volume'],
-                                    1.0 / weightedAverage))
-                else:
-                    cursor.execute('INSERT INTO History_Stock VALUES (?,?,?,?,?,?,?,?,?)',
-                                   (c['date'], stock, c['high'], c['low'], c['open'],
-                                    c['close'], c['volume'], c['quoteVolume'],
-                                    weightedAverage))
+            if c["Date"] > 0:
+                cursor.execute('INSERT INTO History_Stock VALUES (?,?,?,?,?,?,?,?,?)',
+                                   (c['Date'], stock, c['High'], c['Low'], c['Open'],
+                                    c['Close'], c['Volume'], c['Dividends'], c['Stock Splits']))

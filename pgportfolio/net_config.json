@@ -19,7 +19,7 @@
   "input":{
     "market": "yahoo",
     "window_size":31,
-    "company_list": ["MMM", "ABT", "AMZN", "AMGN", "AOS"],
+    "company_list": ["ADBE", "ABT", "AMZN", "AMGN", "ABMD"],
     "global_period":1800,
     "feature_number":3,
     "test_portion":0.08,

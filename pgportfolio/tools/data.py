@@ -56,12 +56,12 @@ def pricenorm2d(m, reference_column,
         raise ValueError("there is no norm morthod called %s" % norm_method)
 
 
-def get_chart_until_success(infoSource, stock, start, period, end):
+def get_chart_until_success(infoSource, target, period, start, end):
     is_connect_success = False
     chart = {}
     while not is_connect_success:
         try:
-            chart = infoSource.market_chart(target=stock, start=int(start), period=int(period), end=int(end))
+            chart = infoSource.market_chart(target=target, start=int(start), period=int(period), end=int(end))
             is_connect_success = True
         except Exception as e:
             print(e)

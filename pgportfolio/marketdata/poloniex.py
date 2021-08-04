@@ -46,7 +46,7 @@ class Poloniex(InfoSource):
                                                      {'currencyPair': pair})  # NEEDS TO BE FIXED ON Poloniex
 
     def market_chart(self, target, period=day, start=(time.time() - (week * 1)), end=time.time()):
-        return self.api('returnChartData', {'currencyPair': pair, 'period': period, 'start': start, 'end': end})
+        return self.api('returnChartData', {'currencyPair': target, 'period': period, 'start': start, 'end': end})
 
     #####################
     # Main Api Function #

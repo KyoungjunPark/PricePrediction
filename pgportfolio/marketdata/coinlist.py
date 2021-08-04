@@ -55,8 +55,8 @@ class CoinList(object):
     def polo(self):
         return self._polo
 
-    def get_chart_until_success(self, pair, start, period, end):
-        return get_chart_until_success(self._polo, pair, start, period, end)
+    def get_chart_until_success(self, pair, period, start, end):
+        return get_chart_until_success(self._polo, pair, period, start, end)
 
     # get several days volume
     def __get_total_volume(self, pair, global_end, days, forward):

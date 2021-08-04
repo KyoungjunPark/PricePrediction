@@ -209,7 +209,7 @@ class DataMatricesStock:
         :param trade_period: the trading period of the agent.
         :param global_period: the data access period of the global price matrix.
                               if it is not equal to the access period, there will be inserted observations
-        :param coin_filter: number of coins that would be selected
+        :param stock_filter: number of stocks that would be selected
         :param window_size: periods of input data
         :param train_portion: portion of training set
         :param is_permed: if False, the sample inside a mini-batch is in order
@@ -218,8 +218,9 @@ class DataMatricesStock:
         :param portion_reversed: if False, the order to sets are [train, validation, test]
         else the order is [test, validation, train]
         """
-        start = int(start)
+        self.__start = int(start)
         self.__end = int(end)
+
         self.__company_list = company_list
         self.__company_no = len(self.__company_list)
 
@@ -227,12 +228,12 @@ class DataMatricesStock:
         type_list = get_type_list(feature_number)
         self.__features = type_list
         self.feature_number = feature_number
-        volume_forward = get_volume_forward(self.__end-start, test_portion, portion_reversed)
-        self.__history_manager = gdm.HistoryManagerStock(end=self.__end, stock_list=self.__company_list,
+        volume_forward = get_volume_forward(self.__end-self.__start, test_portion, portion_reversed)
+        self.__history_manager = gdm.HistoryManagerStock(start=self.__start, end=self.__end, stock_list=self.__company_list,
                                                         volume_average_days=volume_average_days,
                                                         volume_forward=volume_forward, online=online)
         if market == "yahoo":
-            self.__global_data = self.__history_manager.get_global_data(start,
+            self.__global_data = self.__history_manager.get_global_data(self.__start,
                                                                         self.__end,
                                                                         period=period,
                                                                         features=type_list)
@@ -241,7 +242,7 @@ class DataMatricesStock:
         self.__period_length = period
         # portfolio vector memory, [time, assets]
         self.__PVM = pd.DataFrame(index=self.__global_data.columns,
-                                  columns=self.__global_data.index.unique('coin'))
+                                  columns=self.__global_data.index.unique('stock'))
         self.__PVM = self.__PVM.fillna(1.0 / self.__company_no)
 
         self._window_size = window_size
@@ -280,7 +281,7 @@ class DataMatricesStock:
         train_config = config["training"]
         start = parse_time(input_config["start_date"])
         end = parse_time(input_config["end_date"])
-        return DataMatricesCoin(start=start,
+        return DataMatricesStock(start=start,
                                 end=end,
                                 market=input_config["market"],
                                 feature_number=input_config["feature_number"],
@@ -300,7 +301,7 @@ class DataMatricesStock:
         return self.__global_data
 
     @property
-    def coin_list(self):
+    def stock_list(self):
         return self.__history_manager.stocks
 
     @property
@@ -359,7 +360,7 @@ class DataMatricesStock:
         # print(self.__global_data.iloc[:, ind:ind+self._window_size+1])
         return self.__global_data.iloc[:, ind:ind+self._window_size+1].values\
             .reshape(len(self.__global_data.index.unique('feature')),
-                     len(self.__global_data.index.unique('coin')), -1)
+                     len(self.__global_data.index.unique('stock')), -1)
 
     def __divide_data(self, test_portion, portion_reversed):
         train_portion = 1 - test_portion
