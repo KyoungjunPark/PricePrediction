@@ -48,22 +48,23 @@ def train_all(processes=1, device="cpu"):
         console_level = logging.WARNING
         logfile_level = logging.INFO
     train_dir = "train_package"
-    if not os.path.exists("./" + train_dir): #if the directory does not exist, creates one
+    if not os.path.exists("./" + train_dir):  # if the directory does not exist, creates one
         os.makedirs("./" + train_dir)
     all_subdir = os.listdir("./" + train_dir)
     all_subdir.sort()
     pool = []
-    for dir in all_subdir:
+    for tmp_dir in all_subdir:
         # train only if the log dir does not exist
-        if not str.isdigit(dir):
+        if not str.isdigit(tmp_dir):
             return
         # NOTE: logfile is for compatibility reason
-        if not (os.path.isdir("./"+train_dir+"/"+dir+"/tensorboard") or os.path.isdir("./"+train_dir+"/"+dir+"/logfile")):
+        if not (os.path.isdir("./" + train_dir + "/" + tmp_dir + "/tensorboard") or os.path.isdir(
+                "./" + train_dir + "/" + tmp_dir + "/logfile")):
             p = Process(target=train_one, args=(
-                "./" + train_dir + "/" + dir + "/netfile",
-                load_config(dir),
-                "./" + train_dir + "/" + dir + "/tensorboard",
-                dir, logfile_level, console_level, device))
+                "./" + train_dir + "/" + tmp_dir + "/netfile",
+                load_config(tmp_dir),
+                "./" + train_dir + "/" + tmp_dir + "/tensorboard",
+                tmp_dir, logfile_level, console_level, device))
             p.start()
             pool.append(p)
         else:
@@ -77,6 +78,6 @@ def train_all(processes=1, device="cpu"):
                 alive = p.is_alive()
                 if not alive:
                     pool.remove(p)
-            if len(pool)<processes:
+            if len(pool) < processes:
                 wait = False
     print("All the Tasks are Over")

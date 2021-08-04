@@ -41,7 +41,6 @@ class Yahoo(InfoSource):
             # self.history[target]['Date'] = pd.to_datetime(self.history[target]['Date'])
             start = datetime.fromtimestamp(int(start)).strftime('%Y-%m-%d')
             end = datetime.fromtimestamp(int(end)).strftime('%Y-%m-%d')
-
             if target not in self.history.keys():
                 print(target)
                 print(self.history.keys())
@@ -50,7 +49,7 @@ class Yahoo(InfoSource):
             else:
                 data_set = self.history[target]
                 data_set['Date'] = data_set.index
-                return json.loads(data_set[start:end].to_json(orient="records"))
+                return json.loads(data_set[start:end].to_json(orient="records", date_unit="s"))
         else:
             logging.info("cannot happen")
             print(period)
@@ -99,12 +98,6 @@ class Yahoo(InfoSource):
             self.history[ticker] = yf_obj.history(start=start, end=end, interval=DAY_STR)
         return ticker_list
 
-    def get_recent_volume(self, ticker):
-        return self.history[ticker].tail(1)['Volume'].iloc[0]
-
-    def get_recent_prices(self, ticker):
-        return self.history[ticker].tail(1)['Close'].iloc[0]
-
     def add_market_ticker(self, stock_list, start, end):
         self.ticker.append(stock_list)
 
@@ -118,5 +111,11 @@ class Yahoo(InfoSource):
             index += 1
             self.history[ticker] = yf_obj.history(start=start, end=end, interval=DAY_STR)
         return stock_list
+
+    def get_recent_volume(self, ticker):
+        return self.history[ticker].tail(1)['Volume'].iloc[0]
+
+    def get_recent_prices(self, ticker):
+        return self.history[ticker].tail(1)['Close'].iloc[0]
 
 

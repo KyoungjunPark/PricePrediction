@@ -40,7 +40,7 @@ class DataMatricesCoin:
         type_list = get_type_list(feature_number)
         self.__features = type_list
         self.feature_number = feature_number
-        volume_forward = get_volume_forward(self.__end-start, test_portion, portion_reversed)
+        volume_forward = get_volume_forward(self.__end - start, test_portion, portion_reversed)
         self.__history_manager = gdm.HistoryManagerCoin(coin_number=coin_filter, end=self.__end,
                                                         volume_average_days=volume_average_days,
                                                         volume_forward=volume_forward, online=online)
@@ -94,21 +94,28 @@ class DataMatricesCoin:
         train_config = config["training"]
         start = parse_time(input_config["start_date"])
         end = parse_time(input_config["end_date"])
-        return DataMatricesCoin(start=start,
-                                end=end,
-                                market=input_config["market"],
-                                feature_number=input_config["feature_number"],
-                                window_size=input_config["window_size"],
-                                coin_filter=input_config["coin_number"],
-                                online=input_config["online"],
-                                period=input_config["global_period"],
-                                is_permed=input_config["is_permed"],
-                                buffer_bias_ratio=train_config["buffer_biased"],
-                                batch_size=train_config["batch_size"],
-                                volume_average_days=input_config["volume_average_days"],
-                                test_portion=input_config["test_portion"],
-                                portion_reversed=input_config["portion_reversed"],
-                                )
+        data_matrices = None
+        if config["input"]["market"] == "poloniex":
+            data_matrices = DataMatricesCoin(start=start,
+                                             end=end,
+                                             market=input_config["market"],
+                                             feature_number=input_config["feature_number"],
+                                             window_size=input_config["window_size"],
+                                             coin_filter=input_config["coin_number"],
+                                             online=input_config["online"],
+                                             period=input_config["global_period"],
+                                             is_permed=input_config["is_permed"],
+                                             buffer_bias_ratio=train_config["buffer_biased"],
+                                             batch_size=train_config["batch_size"],
+                                             volume_average_days=input_config["volume_average_days"],
+                                             test_portion=input_config["test_portion"],
+                                             portion_reversed=input_config["portion_reversed"],
+                                             )
+        else:
+            logging.info("cannot happen")
+            print(config["input"]["market"])
+            exit(1)
+        return data_matrices
 
     @property
     def global_matrix(self):
@@ -124,7 +131,7 @@ class DataMatricesCoin:
 
     @property
     def test_indices(self):
-        return self._test_ind[:-(self._window_size+1):]
+        return self._test_ind[:-(self._window_size + 1):]
 
     @property
     def num_test_samples(self):
@@ -136,7 +143,7 @@ class DataMatricesCoin:
         Let it be None if in the backtest case.
         """
         self.__delta += 1
-        self._train_ind.append(self._train_ind[-1]+1)
+        self._train_ind.append(self._train_ind[-1] + 1)
         appended_index = self._train_ind[-1]
         self.__replay_buffer.append_experience(appended_index)
 
@@ -158,10 +165,11 @@ class DataMatricesCoin:
 
     def __pack_samples(self, indexs):
         indexs = np.array(indexs)
-        last_w = self.__PVM.values[indexs-1, :]
+        last_w = self.__PVM.values[indexs - 1, :]
 
         def setw(w):
             self.__PVM.iloc[indexs, :] = w
+
         M = [self.get_submatrix(index) for index in indexs]
         M = np.array(M)
         X = M[:, :, :, :-1]
@@ -172,7 +180,7 @@ class DataMatricesCoin:
     def get_submatrix(self, ind):
         idx = pd.IndexSlice
         # print(self.__global_data.iloc[:, ind:ind+self._window_size+1])
-        return self.__global_data.iloc[:, ind:ind+self._window_size+1].values\
+        return self.__global_data.iloc[:, ind:ind + self._window_size + 1].values \
             .reshape(len(self.__global_data.index.unique('feature')),
                      len(self.__global_data.index.unique('coin')), -1)
 
@@ -228,10 +236,11 @@ class DataMatricesStock:
         type_list = get_type_list(feature_number)
         self.__features = type_list
         self.feature_number = feature_number
-        volume_forward = get_volume_forward(self.__end-self.__start, test_portion, portion_reversed)
-        self.__history_manager = gdm.HistoryManagerStock(start=self.__start, end=self.__end, stock_list=self.__company_list,
-                                                        volume_average_days=volume_average_days,
-                                                        volume_forward=volume_forward, online=online)
+        volume_forward = get_volume_forward(self.__end - self.__start, test_portion, portion_reversed)
+        self.__history_manager = gdm.HistoryManagerStock(start=self.__start, end=self.__end,
+                                                         stock_list=self.__company_list,
+                                                         volume_average_days=volume_average_days,
+                                                         volume_forward=volume_forward, online=online)
         if market == "yahoo":
             self.__global_data = self.__history_manager.get_global_data(self.__start,
                                                                         self.__end,
@@ -256,10 +265,10 @@ class DataMatricesStock:
         self.__delta = 0  # the count of global increased
         end_index = self._train_ind[-1]
         self.__replay_buffer = rb.ReplayBufferStock(start_index=self._train_ind[0],
-                                                   end_index=end_index,
-                                                   sample_bias=buffer_bias_ratio,
-                                                   batch_size=self.__batch_size,
-                                                   is_permed=self.__is_permed)
+                                                    end_index=end_index,
+                                                    sample_bias=buffer_bias_ratio,
+                                                    batch_size=self.__batch_size,
+                                                    is_permed=self.__is_permed)
 
         logging.info("the number of training examples is %s"
                      ", of test examples is %s" % (self._num_train_samples, self._num_test_samples))
@@ -281,20 +290,28 @@ class DataMatricesStock:
         train_config = config["training"]
         start = parse_time(input_config["start_date"])
         end = parse_time(input_config["end_date"])
-        return DataMatricesStock(start=start,
-                                end=end,
-                                market=input_config["market"],
-                                feature_number=input_config["feature_number"],
-                                window_size=input_config["window_size"],
-                                online=input_config["online"],
-                                period=input_config["global_period"],
-                                is_permed=input_config["is_permed"],
-                                buffer_bias_ratio=train_config["buffer_biased"],
-                                batch_size=train_config["batch_size"],
-                                volume_average_days=input_config["volume_average_days"],
-                                test_portion=input_config["test_portion"],
-                                portion_reversed=input_config["portion_reversed"],
-                                )
+        data_matrices = None
+        if config["input"]["market"] == "yahoo":
+            data_matrices = DataMatricesStock(start=start,
+                                              end=end,
+                                              company_list=input_config["company_list"],
+                                              market=input_config["market"],
+                                              feature_number=input_config["feature_number"],
+                                              window_size=input_config["window_size"],
+                                              online=input_config["online"],
+                                              period=input_config["global_period"],
+                                              is_permed=input_config["is_permed"],
+                                              buffer_bias_ratio=train_config["buffer_biased"],
+                                              batch_size=train_config["batch_size"],
+                                              volume_average_days=input_config["volume_average_days"],
+                                              test_portion=input_config["test_portion"],
+                                              portion_reversed=input_config["portion_reversed"],
+                                              )
+        else:
+            logging.info("cannot happen")
+            print(config["input"]["market"])
+            exit(1)
+        return data_matrices
 
     @property
     def global_matrix(self):
@@ -310,7 +327,7 @@ class DataMatricesStock:
 
     @property
     def test_indices(self):
-        return self._test_ind[:-(self._window_size+1):]
+        return self._test_ind[:-(self._window_size + 1):]
 
     @property
     def num_test_samples(self):
@@ -322,7 +339,7 @@ class DataMatricesStock:
         Let it be None if in the backtest case.
         """
         self.__delta += 1
-        self._train_ind.append(self._train_ind[-1]+1)
+        self._train_ind.append(self._train_ind[-1] + 1)
         appended_index = self._train_ind[-1]
         self.__replay_buffer.append_experience(appended_index)
 
@@ -344,10 +361,11 @@ class DataMatricesStock:
 
     def __pack_samples(self, indexs):
         indexs = np.array(indexs)
-        last_w = self.__PVM.values[indexs-1, :]
+        last_w = self.__PVM.values[indexs - 1, :]
 
         def setw(w):
             self.__PVM.iloc[indexs, :] = w
+
         M = [self.get_submatrix(index) for index in indexs]
         M = np.array(M)
         X = M[:, :, :, :-1]
@@ -358,7 +376,7 @@ class DataMatricesStock:
     def get_submatrix(self, ind):
         idx = pd.IndexSlice
         # print(self.__global_data.iloc[:, ind:ind+self._window_size+1])
-        return self.__global_data.iloc[:, ind:ind+self._window_size+1].values\
+        return self.__global_data.iloc[:, ind:ind + self._window_size + 1].values \
             .reshape(len(self.__global_data.index.unique('feature')),
                      len(self.__global_data.index.unique('stock')), -1)
 

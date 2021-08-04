@@ -51,7 +51,7 @@ class CNN(NeuralNetWork):
                                                               int(layer["neuron_number"]),
                                                               layer["activation_function"],
                                                               regularizer=layer["regularizer"],
-                                                              weight_decay=layer["weight_decay"] )
+                                                              weight_decay=layer["weight_decay"])
                 self.add_layer_to_dict(layer["type"], network)
             elif layer["type"] == "DropOut":
                 network = tflearn.layers.core.dropout(network, layer["keep_probability"])
@@ -94,8 +94,8 @@ class CNN(NeuralNetWork):
                 self.add_layer_to_dict(layer["type"], network, weights=False)
             elif layer["type"] == "Output_WithW":
                 network = tflearn.flatten(network)
-                network = tf.concat([network,self.previous_w], axis=1)
-                network = tflearn.fully_connected(network, self._rows+1,
+                network = tf.concat([network, self.previous_w], axis=1)
+                network = tflearn.fully_connected(network, self._rows + 1,
                                                   activation="softmax",
                                                   regularizer=layer["regularizer"],
                                                   weight_decay=layer["weight_decay"])
@@ -103,7 +103,7 @@ class CNN(NeuralNetWork):
                 width = network.get_shape()[2]
                 height = network.get_shape()[1]
                 features = network.get_shape()[3]
-                network = tf.reshape(network, [self.input_num, int(height), 1, int(width*features)])
+                network = tf.reshape(network, [self.input_num, int(height), 1, int(width * features)])
                 w = tf.reshape(self.previous_w, [-1, int(height), 1, 1])
                 network = tf.concat([network, w], axis=3)
                 network = tflearn.layers.conv_2d(network, 1, [1, 1], padding="valid",
@@ -111,9 +111,9 @@ class CNN(NeuralNetWork):
                                                  weight_decay=layer["weight_decay"])
                 self.add_layer_to_dict(layer["type"], network)
                 network = network[:, :, 0, 0]
-                #btc_bias = tf.zeros((self.input_num, 1))
+                # btc_bias = tf.zeros((self.input_num, 1))
                 btc_bias = tf.compat.v1.get_variable("btc_bias", [1, 1], dtype=tf.float32,
-                                       initializer=tf.compat.v1.zeros_initializer)
+                                                     initializer=tf.compat.v1.zeros_initializer)
                 # self.add_layer_to_dict(layer["type"], network, weights=False)
                 btc_bias = tf.tile(btc_bias, [self.input_num, 1])
                 network = tf.concat([btc_bias, network], 1)
@@ -122,8 +122,8 @@ class CNN(NeuralNetWork):
                 network = tflearn.layers.core.activation(network, activation="softmax")
                 self.add_layer_to_dict('softmax_layer', network, weights=False)
 
-            elif layer["type"] == "EIIE_LSTM" or\
-                            layer["type"] == "EIIE_RNN":
+            elif layer["type"] == "EIIE_LSTM" or \
+                    layer["type"] == "EIIE_RNN":
                 network = tf.transpose(a=network, perm=[0, 2, 3, 1])
                 resultlist = []
                 reuse = False
@@ -134,13 +134,13 @@ class CNN(NeuralNetWork):
                         result = tflearn.layers.lstm(network[:, :, :, i],
                                                      int(layer["neuron_number"]),
                                                      dropout=layer["dropouts"],
-                                                     scope="lstm"+str(layer_number),
+                                                     scope="lstm" + str(layer_number),
                                                      reuse=reuse)
                     else:
                         result = tflearn.layers.simple_rnn(network[:, :, :, i],
                                                            int(layer["neuron_number"]),
                                                            dropout=layer["dropouts"],
-                                                           scope="rnn"+str(layer_number),
+                                                           scope="rnn" + str(layer_number),
                                                            reuse=reuse)
                     resultlist.append(result)
                 network = tf.stack(resultlist)
@@ -153,4 +153,3 @@ class CNN(NeuralNetWork):
 
 def allint(l):
     return [int(i) for i in l]
-

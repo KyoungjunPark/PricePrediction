@@ -17,10 +17,10 @@
   },
 
   "input":{
-    "market": "yahoo",
+    "market": "poloniex",
     "window_size":31,
-    "company_list": ["ADBE", "ABT", "AMZN", "AMGN", "ABMD"],
-    "global_period":86400,
+    "coin_number":11,
+    "global_period":1800,
     "feature_number":3,
     "test_portion":0.08,
     "online":false,
@@ -28,7 +28,6 @@
     "end_date":"2021/07/01",
     "volume_average_days":30
   },
-
   "trading":{
     "trading_consumption":0.0025,
     "rolling_training_steps":85,

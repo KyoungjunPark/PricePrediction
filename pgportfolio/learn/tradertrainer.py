@@ -11,23 +11,25 @@ import tflearn
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from pgportfolio.learn.nnagent import NNAgent
-from pgportfolio.marketdata.datamatrices import DataMatricesCoin
-import logging
 
+from pgportfolio.learn.nnagentCoin import NNAgentCoin
+from pgportfolio.learn.nnagentStock import NNAgentStock
+from pgportfolio.marketdata.datamatrices import DataMatricesCoin, DataMatricesStock
+import logging
 
 Result = collections.namedtuple("Result",
                                 [
-                                 "test_pv",
-                                 "test_log_mean",
-                                 "test_log_mean_free",
-                                 "test_history",
-                                 "config",
-                                 "net_dir",
-                                 "backtest_test_pv",
-                                 "backtest_test_history",
-                                 "backtest_test_log_mean",
-                                 "training_time"])
+                                    "test_pv",
+                                    "test_log_mean",
+                                    "test_log_mean_free",
+                                    "test_history",
+                                    "config",
+                                    "net_dir",
+                                    "backtest_test_pv",
+                                    "backtest_test_history",
+                                    "backtest_test_log_mean",
+                                    "training_time"])
+
 
 class TraderTrainer:
     def __init__(self, config, fake_data=False, restore_dir=None, save_path=None, device="cpu",
@@ -54,8 +56,13 @@ class TraderTrainer:
         self.__snap_shot = self.train_config["snap_shot"]
         config["input"]["fake_data"] = fake_data
 
-        self._matrix = DataMatricesCoin.create_from_config(config)
-
+        if self.input_config["market"] == "poloniex":
+            self._matrix = DataMatricesCoin.create_from_config(config)
+        elif self.input_config["market"] == "yahoo":
+            self._matrix = DataMatricesStock.create_from_config(config)
+        else:
+            logging.info("Cannot happen")
+            exit(1)
         self.test_set = self._matrix.get_test_set()
         if not config["training"]["fast_train"]:
             self.training_set = self._matrix.get_training_set()
@@ -69,9 +76,15 @@ class TraderTrainer:
             if device == "cpu":
                 os.environ["CUDA_VISIBLE_DEVICES"] = ""
                 with tf.device("/cpu:0"):
-                    self._agent = NNAgent(config, restore_dir, device)
+                    if self.input_config["market"] == "poloniex":
+                        self._agent = NNAgentCoin(config, restore_dir, device)
+                    elif self.input_config["market"] == "yahoo":
+                        self._agent = NNAgentStock(config, restore_dir, device)
             else:
-                self._agent = NNAgent(config, restore_dir, device)
+                if self.input_config["market"] == "poloniex":
+                    self._agent = NNAgentCoin(config, restore_dir, device)
+                elif self.input_config["market"] == "yahoo":
+                    self._agent = NNAgentStock(config, restore_dir, device)
 
     def _evaluate(self, set_name, *tensors):
         if set_name == "test":
@@ -80,7 +93,7 @@ class TraderTrainer:
             feed = self.training_set
         else:
             raise ValueError()
-        result = self._agent.evaluate_tensors(feed["X"],feed["y"],last_w=feed["last_w"],
+        result = self._agent.evaluate_tensors(feed["X"], feed["y"], last_w=feed["last_w"],
                                               setw=feed["setw"], tensors=tensors)
         return result
 
@@ -96,7 +109,7 @@ class TraderTrainer:
         fast_train = self.train_config["fast_train"]
         tflearn.is_training(False, self._agent.session)
 
-        summary, v_pv, v_log_mean, v_loss, log_mean_free, weights= \
+        summary, v_pv, v_log_mean, v_loss, log_mean_free, weights = \
             self._evaluate("test", self.summary,
                            self._agent.portfolio_value,
                            self._agent.log_mean,
@@ -110,15 +123,15 @@ class TraderTrainer:
             self.train_writer.add_summary(summary, step)
 
         # print 'ouput is %s' % out
-        logging.info('='*30)
+        logging.info('=' * 30)
         logging.info('step %d' % step)
-        logging.info('-'*30)
+        logging.info('-' * 30)
         if not fast_train:
             logging.info('training loss is %s\n' % loss_value)
         logging.info('the portfolio value on test set is %s\nlog_mean is %s\n'
                      'loss_value is %3f\nlog mean without commission fee is %3f\n' % \
                      (v_pv, v_log_mean, v_loss, log_mean_free))
-        logging.info('='*30+"\n")
+        logging.info('=' * 30 + "\n")
 
         if not self.__snap_shot:
             self._agent.save_model(self.save_path)
@@ -133,7 +146,6 @@ class TraderTrainer:
     def check_abnormal(self, portfolio_value, weigths):
         if portfolio_value == 1.0:
             logging.info("average portfolio weights {}".format(weigths.mean(axis=0)))
-
 
     def next_batch(self):
         batch = self._matrix.next_batch()
@@ -158,7 +170,7 @@ class TraderTrainer:
         self.summary = tf.compat.v1.summary.merge_all()
         location = log_file_dir
         self.network_writer = tf.compat.v1.summary.FileWriter(location + '/network',
-                                                    self._agent.session.graph)
+                                                              self._agent.session.graph)
         self.test_writer = tf.compat.v1.summary.FileWriter(location + '/test')
         self.train_writer = tf.compat.v1.summary.FileWriter(location + '/train')
 
@@ -191,15 +203,15 @@ class TraderTrainer:
             self._agent.train(x, y, last_w=last_w, setw=setw)
             total_training_time += time.time() - finish_data
             if i % 1000 == 0 and log_file_dir:
-                logging.info("average time for data accessing is %s"%(total_data_time/1000))
-                logging.info("average time for training is %s"%(total_training_time/1000))
+                logging.info("average time for data accessing is %s" % (total_data_time / 1000))
+                logging.info("average time for training is %s" % (total_training_time / 1000))
                 total_training_time = 0
                 total_data_time = 0
                 self.log_between_steps(i)
 
         if self.save_path:
             self._agent.recycle()
-            best_agent = NNAgent(self.config, restore_dir=self.save_path)
+            best_agent = NNAgentStock(self.config, restore_dir=self.save_path)
             self._agent = best_agent
 
         pv, log_mean = self._evaluate("test", self._agent.portfolio_value, self._agent.log_mean)
@@ -213,7 +225,7 @@ class TraderTrainer:
         dataframe = None
         csv_dir = './train_package/train_summary.csv'
         tflearn.is_training(False, self._agent.session)
-        v_pv, v_log_mean, benefit_array, v_log_mean_free =\
+        v_pv, v_log_mean, benefit_array, v_log_mean_free = \
             self._evaluate("test",
                            self._agent.portfolio_value,
                            self._agent.log_mean,
@@ -228,11 +240,11 @@ class TraderTrainer:
         result = Result(test_pv=[v_pv],
                         test_log_mean=[v_log_mean],
                         test_log_mean_free=[v_log_mean_free],
-                        test_history=[''.join(str(e)+', ' for e in benefit_array)],
+                        test_history=[''.join(str(e) + ', ' for e in benefit_array)],
                         config=[json.dumps(self.config)],
                         net_dir=[index],
                         backtest_test_pv=[backtest.test_pv],
-                        backtest_test_history=[''.join(str(e)+', ' for e in backtest.test_pc_vector)],
+                        backtest_test_history=[''.join(str(e) + ', ' for e in backtest.test_pc_vector)],
                         backtest_test_log_mean=[np.mean(np.log(backtest.test_pc_vector))],
                         training_time=int(time))
         new_data_frame = pd.DataFrame(result._asdict()).set_index("net_dir")
@@ -244,4 +256,3 @@ class TraderTrainer:
         if int(index) > 0:
             dataframe.to_csv(csv_dir)
         return result
-

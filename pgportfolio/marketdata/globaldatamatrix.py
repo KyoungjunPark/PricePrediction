@@ -143,13 +143,13 @@ class HistoryManagerCoin:
                 coins_tuples = cursor.fetchall()
 
                 if len(coins_tuples) != self._coin_number:
-                    logging.error("the sqlite error happend")
+                    logging.error("the sqlite error happened")
             finally:
                 connection.commit()
                 connection.close()
             coins = []
-            for tuple in coins_tuples:
-                coins.append(tuple[0])
+            for tmp_tuple in coins_tuples:
+                coins.append(tmp_tuple[0])
         else:
             coins = list(self._coin_list.topNVolume(n=self._coin_number).index)
         logging.debug("Selected coins are: " + str(coins))
@@ -236,7 +236,7 @@ class HistoryManagerStock:
     # NOTE: return of the sqlite results is a list of tuples, each tuple is a row
     def __init__(self, start, end, stock_list, volume_average_days=1, volume_forward=0, online=True):
         self.initialize_db()
-        self.__storage_period = DAY  # keep this as 300
+        self.__storage_period = DAY  # keep this as DAY
         self._online = online
         if self._online:
             self._stock_list = StockList(stock_list, start, end, volume_average_days, volume_forward)
@@ -272,16 +272,18 @@ class HistoryManagerStock:
         :param features: tuple or list of the feature names
         :return a panel, [feature, stock, time]
         """
-        start = int(start - (start % period))
-        end = int(end - (end % period))
-
+        # print(datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M'))
+        # print(datetime.fromtimestamp(end).strftime('%Y-%m-%d %H:%M'))
+        start = start + HOUR * 9  # Stock Opening at 9 am
+        end = end + HOUR * 9
+        # end = int(end + (end % period))
         for stock in self.stocks:
             self.update_data(start, end, stock)
 
         logging.info("feature type list is %s" % str(features))
         self.__checkperiod(period)
 
-        time_index = pd.to_datetime(list(range(start, end + 1, period)), unit='s')
+        time_index = pd.to_datetime(list(range(start, end, period)), unit='s').strftime('%Y-%m-%d')
         # panel = pd.Panel(items=features, major_axis=stocks, minor_axis=time_index, dtype=np.float32)
         df = pd.DataFrame(index=pd.MultiIndex.from_product([features, self.stocks], names=['feature', 'stock']),
                           columns=time_index, dtype=np.float64)
@@ -292,37 +294,32 @@ class HistoryManagerStock:
                 for feature in features:
                     # NOTE: transform the start date to end date
                     if feature == "close":
-                        sql = ("SELECT date+300 AS date_norm, close FROM History_Stock WHERE"
+                        sql = ("SELECT date AS date_norm, close FROM History_Stock WHERE"
                                " date_norm>={start} and date_norm<={end}"
                                " and date_norm%{period}=0 and stock=\"{stock}\""
                                .format(start=start, end=end, period=period, stock=stock))
                     elif feature == "open":
-                        sql = ("SELECT date+{period} AS date_norm, open FROM History_Stock WHERE"
+                        sql = ("SELECT date AS date_norm, open FROM History_Stock WHERE"
                                " date_norm>={start} and date_norm<={end}"
                                " and date_norm%{period}=0 and stock=\"{stock}\""
                                .format(start=start, end=end, period=period, stock=stock))
                     elif feature == "volume":
-                        sql = ("SELECT date_norm, SUM(volume)" +
-                               " FROM (SELECT date+{period}-(date%{period}) "
-                               "AS date_norm, volume, stock FROM History_Stock)"
-                               " WHERE date_norm>={start} and date_norm<={end} and stock=\"{stock}\""
-                               " GROUP BY date_norm".format(period=period, start=start, end=end, stock=stock))
+                        sql = ("SELECT date AS date_norm, volume FROM History_Stock WHERE"
+                               " date_norm>={start} and date_norm<={end} and stock=\"{stock}\""
+                               .format(period=period, start=start, end=end, stock=stock))
                     elif feature == "high":
-                        sql = ("SELECT date_norm, MAX(high)" +
-                               " FROM (SELECT date+{period}-(date%{period})"
-                               " AS date_norm, high, stock FROM History_Stock)"
-                               " WHERE date_norm>={start} and date_norm<={end} and stock=\"{stock}\""
-                               " GROUP BY date_norm".format(period=period, start=start, end=end, stock=stock))
+                        sql = ("SELECT date AS date_norm, high FROM History_Stock WHERE"
+                               " date_norm>={start} and date_norm<={end} and stock=\"{stock}\""
+                               .format(period=period, start=start, end=end, stock=stock))
                     elif feature == "low":
-                        sql = ("SELECT date_norm, MIN(low)" +
-                               " FROM (SELECT date+{period}-(date%{period})"
-                               " AS date_norm, low, stock FROM History_Stock)"
-                               " WHERE date_norm>={start} and date_norm<={end} and stock=\"{stock}\""
-                               " GROUP BY date_norm".format(period=period, start=start, end=end, stock=stock))
+                        sql = ("SELECT date AS date_norm, low FROM History_Stock WHERE"
+                               " date_norm>={start} and date_norm<={end} and stock=\"{stock}\""
+                               .format(period=period, start=start, end=end, stock=stock))
                     else:
                         msg = ("The feature %s is not supported" % feature)
                         logging.error(msg)
                         raise ValueError(msg)
+
                     serial_data = pd.read_sql_query(sql, con=connection,
                                                     parse_dates=["date_norm"],
                                                     index_col="date_norm")
@@ -330,6 +327,7 @@ class HistoryManagerStock:
                     df.loc[idx[feature, stock], serial_data.index] = serial_data.squeeze()
                     df.loc[idx[feature, stock], :] = df.loc[idx[feature, stock], :].fillna(method="bfill").fillna(
                         method="ffill")
+
         finally:
             connection.commit()
             connection.close()
@@ -362,6 +360,9 @@ class HistoryManagerStock:
             if min_date is None or max_date is None:
                 self.__fill_data(start, end, stock, cursor)
             else:
+                logging.info("%s(Min) or %s(Max) are not None for %s"
+                             % (datetime.fromtimestamp(min_date).strftime('%Y-%m-%d'),
+                                datetime.fromtimestamp(max_date).strftime('%Y-%m-%d'), stock))
                 pass
 
             # if there is no data
@@ -370,9 +371,9 @@ class HistoryManagerStock:
             connection.close()
 
     def __fill_data(self, start, end, stock, cursor):
-        duration = DAY  # three months
+        duration = 2592000 * 3  # three months
         bk_start = start
-        for bk_end in range(start + duration - 1, end, duration):
+        for bk_end in range(start + duration - DAY, end, duration):
             self.__fill_part_data(bk_start, bk_end, stock, cursor)
             bk_start += duration
         if bk_start < end:
@@ -384,10 +385,11 @@ class HistoryManagerStock:
             start=start,
             end=end,
             period=self.__storage_period)
-        logging.info("fill %s data from %s to %s" % (stock, datetime.fromtimestamp(start).strftime('%Y-%m-%d %H:%M'),
-                                                     datetime.fromtimestamp(end).strftime('%Y-%m-%d %H:%M')))
+        logging.info("fill %s data from %s to %s" % (stock, datetime.fromtimestamp(start).strftime('%Y-%m-%d'),
+                                                     datetime.fromtimestamp(end).strftime('%Y-%m-%d')))
+
         for c in chart:
             if c["Date"] > 0:
                 cursor.execute('INSERT INTO History_Stock VALUES (?,?,?,?,?,?,?,?,?)',
-                                   (c['Date'], stock, c['High'], c['Low'], c['Open'],
-                                    c['Close'], c['Volume'], c['Dividends'], c['Stock Splits']))
+                               (c['Date'], stock, c['High'], c['Low'], c['Open'],
+                                c['Close'], c['Volume'], c['Dividends'], c['Stock Splits']))

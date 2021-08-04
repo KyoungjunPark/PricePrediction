@@ -6,7 +6,7 @@ from pgportfolio.constants import *
 import pgportfolio.learn.network as network
 
 
-class NNAgent:
+class NNAgentCoin:
     def __init__(self, config, restore_dir=None, device="cpu"):
         self.__config = config
         self.__coin_number = config["input"]["coin_number"]
