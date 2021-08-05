@@ -240,6 +240,8 @@ class HistoryManagerStock:
         self._online = online
         if self._online:
             self._stock_list = StockList(stock_list, start, end, volume_average_days, volume_forward)
+        else:
+            self._stock_list = StockList(stock_list, start, end, volume_average_days, volume_forward)
         self.__volume_forward = volume_forward
         self.__volume_average_days = volume_average_days
         self.__stocks = stock_list
@@ -360,7 +362,7 @@ class HistoryManagerStock:
             if min_date is None or max_date is None:
                 self.__fill_data(start, end, stock, cursor)
             else:
-                logging.info("%s(Min) or %s(Max) are not None for %s"
+                logging.info("Data from %s to %s already exists about %s"
                              % (datetime.fromtimestamp(min_date).strftime('%Y-%m-%d'),
                                 datetime.fromtimestamp(max_date).strftime('%Y-%m-%d'), stock))
                 pass
@@ -371,7 +373,7 @@ class HistoryManagerStock:
             connection.close()
 
     def __fill_data(self, start, end, stock, cursor):
-        duration = 2592000 * 3  # three months
+        duration = 2592000 * 12  # 1 year
         bk_start = start
         for bk_end in range(start + duration - DAY, end, duration):
             self.__fill_part_data(bk_start, bk_end, stock, cursor)

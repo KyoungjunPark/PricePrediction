@@ -14,12 +14,19 @@ class StockList(object):
         self._yahoo = Yahoo()
         # connect the internet to accees volumes
         # vol = self._yahoo.marketVolume()
-        # ticker = self._yahoo.add_market_sp500_ticker(start, end)
-        ticker = self._yahoo.add_market_ticker(stock_list, start, end)
+        try:
+            # self._yahoo.add_market_dow_ticker(start, end)
+            self._yahoo.add_market_ticker(stock_list, start, end)
+        except Exception:
+            logging.info("Error occurred while loading yahoo finance info.")
+            pass
+        # ticker = self._yahoo.add_market_ticker(stock_list, start, end)
         pairs = []
         stocks = []
         volumes = []
         prices = []
+
+        ticker = self._yahoo.get_tickers()
 
         logging.info("select stock online from %s to %s" % (datetime.fromtimestamp(start).
                                                            strftime('%Y-%m-%d %H:%M'),

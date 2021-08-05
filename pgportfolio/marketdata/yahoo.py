@@ -31,7 +31,6 @@ PUBLIC_COMMANDS = ['returnTicker', 'return24hVolume', 'returnOrderBook', 'return
 
 class Yahoo(InfoSource):
     def __init__(self):
-        self.ticker = []
         self.history = {}
 
     def market_chart(self, target, start=time.time() - (week * 1), period=DAY, end=time.time()):
@@ -42,9 +41,7 @@ class Yahoo(InfoSource):
             start = datetime.fromtimestamp(int(start)).strftime('%Y-%m-%d')
             end = datetime.fromtimestamp(int(end)).strftime('%Y-%m-%d')
             if target not in self.history.keys():
-                print(target)
-                print(self.history.keys())
-                print("Cannot happen!!")
+                logging.info("%s does not exist in DB" % target)
                 exit(1)
             else:
                 data_set = self.history[target]
@@ -57,65 +54,48 @@ class Yahoo(InfoSource):
 
     def add_market_nasdaq_ticker(self, start, end):
         ticker_list = tickers_nasdaq()
-        self.ticker.append(ticker_list)
-        index = 0
-        for ticker in ticker_list:
-            yf_obj = yf.Ticker(ticker)
-            if index % 100 == 0:
-                logging.info("%d/%d" % (index, len(ticker_list)))
-            index += 1
-            self.history[ticker] = yf_obj.history(start=start, end=end, interval=DAY_STR)
-        return ticker_list
+        self.add_market_ticker(ticker_list, start, end)
+        return True
 
     def add_market_sp500_ticker(self, start, end):
         ticker_list = tickers_sp500()
-        self.ticker.append(ticker_list)
-
-        start = datetime.fromtimestamp(int(start)).strftime('%Y-%m-%d')
-        end = datetime.fromtimestamp(int(end)).strftime('%Y-%m-%d')
-        index = 0
-        for ticker in ticker_list:
-            yf_obj = yf.Ticker(ticker)
-            if index % 100 == 0:
-                logging.info("%d/%d" % (index, len(ticker_list)))
-            index += 1
-
-            self.history[ticker] = yf_obj.history(start=start, end=end, interval=DAY_STR)
-        return ticker_list
+        self.add_market_ticker(ticker_list, start, end)
+        return True
 
     def add_market_dow_ticker(self, start, end):
         ticker_list = tickers_dow()
-        self.ticker.append(ticker_list)
-        index = 0
-
-        start = datetime.fromtimestamp(int(start)).strftime('%Y-%m-%d')
-        end = datetime.fromtimestamp(int(end)).strftime('%Y-%m-%d')
-        for ticker in ticker_list:
-            yf_obj = yf.Ticker(ticker)
-            if index % 100 == 0:
-                logging.info("%d/%d" % (index, len(ticker_list)))
-            index += 1
-            self.history[ticker] = yf_obj.history(start=start, end=end, interval=DAY_STR)
-        return ticker_list
+        self.add_market_ticker(ticker_list, start, end)
+        return True
 
     def add_market_ticker(self, stock_list, start, end):
-        self.ticker.append(stock_list)
-
         start = datetime.fromtimestamp(int(start)).strftime('%Y-%m-%d')
         end = datetime.fromtimestamp(int(end)).strftime('%Y-%m-%d')
         index = 0
+        tmp_start = time.time()
         for ticker in stock_list:
             yf_obj = yf.Ticker(ticker)
             if index % 100 == 0:
-                logging.info("%d/%d" % (index, len(stock_list)))
+                logging.info("%d/%d (elapsed time: %s)" % (index, len(stock_list), time.time() - tmp_start))
+                tmp_start = time.time()
             index += 1
-            self.history[ticker] = yf_obj.history(start=start, end=end, interval=DAY_STR)
-        return stock_list
+            stock_df = yf_obj.history(start=start, end=end, interval=DAY_STR)
+            if not stock_df.empty:
+                self.history[ticker] = stock_df
+        return True
+
+    def add_all_possible_ticker(self, start, end):
+        self.add_market_nasdaq_ticker(start, end)
+        self.add_market_sp500_ticker(start, end)
+        self.add_market_dow_ticker(start, end)
+        return self.history.keys()
 
     def get_recent_volume(self, ticker):
         return self.history[ticker].tail(1)['Volume'].iloc[0]
 
     def get_recent_prices(self, ticker):
         return self.history[ticker].tail(1)['Close'].iloc[0]
+
+    def get_tickers(self):
+        return self.history.keys()
 
 
