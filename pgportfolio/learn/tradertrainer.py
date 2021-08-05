@@ -211,7 +211,10 @@ class TraderTrainer:
 
         if self.save_path:
             self._agent.recycle()
-            best_agent = NNAgentStock(self.config, restore_dir=self.save_path)
+            if self.input_config["market"] == "poloniex":
+                best_agent = NNAgentCoin(self.config, restore_dir=self.save_path)
+            elif self.input_config["market"] == "yahoo":
+                best_agent = NNAgentStock(self.config, restore_dir=self.save_path)
             self._agent = best_agent
 
         pv, log_mean = self._evaluate("test", self._agent.portfolio_value, self._agent.log_mean)
@@ -221,7 +224,6 @@ class TraderTrainer:
         return self.__log_result_csv(index, time.time() - starttime)
 
     def __log_result_csv(self, index, time):
-        from pgportfolio.trade import backtest
         dataframe = None
         csv_dir = './train_package/train_summary.csv'
         tflearn.is_training(False, self._agent.session)
@@ -231,21 +233,31 @@ class TraderTrainer:
                            self._agent.log_mean,
                            self._agent.pv_vector,
                            self._agent.log_mean_free)
+        back_test = None
+        if self.input_config["market"] == "poloniex":
+            from pgportfolio.trade import backtest_coin
+            back_test = backtest_coin.BackTestCoin(self.config.copy(),
+                                                  net_dir=None,
+                                                  agent=self._agent)
+        elif self.input_config["market"] == "yahoo":
+            from pgportfolio.trade import backtest_stock
+            back_test = backtest_stock.BackTestStock(self.config.copy(),
+                                                  net_dir=None,
+                                                  agent=self._agent)
+        else:
+            logging.info("Cannot happen")
+            exit(1)
 
-        backtest = backtest.BackTest(self.config.copy(),
-                                     net_dir=None,
-                                     agent=self._agent)
-
-        backtest.start_trading()
+        back_test.start_trading()
         result = Result(test_pv=[v_pv],
                         test_log_mean=[v_log_mean],
                         test_log_mean_free=[v_log_mean_free],
                         test_history=[''.join(str(e) + ', ' for e in benefit_array)],
                         config=[json.dumps(self.config)],
                         net_dir=[index],
-                        backtest_test_pv=[backtest.test_pv],
-                        backtest_test_history=[''.join(str(e) + ', ' for e in backtest.test_pc_vector)],
-                        backtest_test_log_mean=[np.mean(np.log(backtest.test_pc_vector))],
+                        backtest_test_pv=[back_test.test_pv],
+                        backtest_test_history=[''.join(str(e) + ', ' for e in back_test.test_pc_vector)],
+                        backtest_test_log_mean=[np.mean(np.log(back_test.test_pc_vector))],
                         training_time=int(time))
         new_data_frame = pd.DataFrame(result._asdict()).set_index("net_dir")
         if os.path.isfile(csv_dir):

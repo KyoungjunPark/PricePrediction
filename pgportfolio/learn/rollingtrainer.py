@@ -22,6 +22,10 @@ class RollingTrainer(TraderTrainer):
         return self._matrix.coin_list
 
     @property
+    def stock_list(self):
+        return self._matrix.stock_list
+
+    @property
     def data_matrices(self):
         return self._matrix
 

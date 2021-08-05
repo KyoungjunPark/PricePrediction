@@ -1,5 +1,5 @@
 from __future__ import division,absolute_import,print_function
-from pgportfolio.trade.backtest import BackTest
+from pgportfolio.trade.backtest_coin import BackTestCoin
 from pgportfolio.tdagent.algorithms import crp, ons, olmar, up, anticor1, pamr,\
     best, bk, cwmr_std, eg, sp, ubah, wmamr, bcrp, cornk, m0, rmr
 
@@ -18,7 +18,7 @@ def execute_backtest(algo, config):
     @:return: numpy array of portfolio changes
     """
     agent, agent_type, net_dir = _construct_agent(algo)
-    backtester = BackTest(config, agent=agent, agent_type=agent_type, net_dir=net_dir)
+    backtester = BackTestCoin(config, agent=agent, agent_type=agent_type, net_dir=net_dir)
     backtester.start_trading()
     return backtester.test_pc_vector
 
