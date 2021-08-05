@@ -4,6 +4,8 @@ from pgportfolio.tdagent.algorithms import crp, ons, olmar, up, anticor1, pamr,\
     best, bk, cwmr_std, eg, sp, ubah, wmamr, bcrp, cornk, m0, rmr
 
 # the dictionary of name of algorithms mapping to the constructor of tdagents
+from pgportfolio.trade.backtest_stock import BackTestStock
+
 ALGOS = {"crp": crp.CRP, "ons": ons.ONS, "olmar": olmar.OLMAR, "up": up.UP,
          "anticor": anticor1.ANTICOR1, "pamr": pamr.PAMR,
          "best": best.BEST, "bk": bk.BK, "bcrp": bcrp.BCRP,
@@ -18,7 +20,13 @@ def execute_backtest(algo, config):
     @:return: numpy array of portfolio changes
     """
     agent, agent_type, net_dir = _construct_agent(algo)
-    backtester = BackTestCoin(config, agent=agent, agent_type=agent_type, net_dir=net_dir)
+    backtester = None
+    if config["input"]["market"] == "poloniex":
+        backtester = BackTestCoin(config, agent=agent, agent_type=agent_type, net_dir=net_dir)
+    elif config["input"]["market"] == "yahoo":
+        backtester = BackTestStock(config, agent=agent, agent_type=agent_type, net_dir=net_dir)
+    else:
+        logging.info("Doesn't support the market: %s", config["input"]["market"])
     backtester.start_trading()
     return backtester.test_pc_vector
 

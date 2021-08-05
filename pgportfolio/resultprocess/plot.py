@@ -43,7 +43,6 @@ NAMES = {"best": "Best Stock (Benchmark)",
          "wmamr": "WMAMR"
          }
 
-
 def plot_backtest(config, algos, labels=None):
     """
     @:param config: config dictionary
