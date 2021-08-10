@@ -1,4 +1,7 @@
 from __future__ import division,absolute_import,print_function
+
+import logging
+
 from pgportfolio.trade.backtest_coin import BackTestCoin
 from pgportfolio.tdagent.algorithms import crp, ons, olmar, up, anticor1, pamr,\
     best, bk, cwmr_std, eg, sp, ubah, wmamr, bcrp, cornk, m0, rmr

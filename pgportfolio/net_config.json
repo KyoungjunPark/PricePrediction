@@ -19,12 +19,12 @@
   "input":{
     "market": "yahoo",
     "window_size":31,
-    "company_list": ["ADBE", "ABT", "AMZN", "AMGN", "ABMD"],
+    "company_list": ["AAPL", "MSFT", "GOOG", "AMZN", "FB", "TSLA", "WMT"],
     "global_period":86400,
     "feature_number":3,
     "test_portion":0.08,
     "online":false,
-    "start_date":"2019/01/01",
+    "start_date":"2010/01/01",
     "end_date":"2021/07/01",
     "volume_average_days":30
   },
